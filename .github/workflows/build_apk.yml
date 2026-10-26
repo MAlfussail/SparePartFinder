@@ -33,15 +33,29 @@ jobs:
           flutter create --platforms=android --org com.spareparts --project-name spare_parts_ai_matcher /tmp/flutter_build
           if [ -f "/tmp/app_src/main.dart" ]; then
             cp /tmp/app_src/main.dart /tmp/flutter_build/lib/main.dart
-            sed -i 's/Icons.settings_Suggest/Icons.settings/g' /tmp/flutter_build/lib/main.dart
-            sed -i "s/import 'package:file_picker\/file_picker.dart';//g" /tmp/flutter_build/lib/main.dart
           fi
+
+          python3 - << 'PY'
+          import re
+          p = "/tmp/flutter_build/lib/main.dart"
+          s = open(p, encoding="utf-8").read()
+          if ("FilePicker" in s or "FileType" in s) and "package:file_picker/file_picker.dart" not in s:
+              s = "import 'package:file_picker/file_picker.dart';\n" + s
+          s = s.replace("Icons.settings_Suggest", "Icons.settings")
+          s = s.replace("chromaHist[hueBin]", "chromaHist[hueBin.toInt()]")
+          s = s.replace("chromaHist[metalBin]", "chromaHist[metalBin.toInt()]")
+          s = s.replace("ringCounts[ringIdx]", "ringCounts[ringIdx.toInt()]")
+          s = s.replace("relativeAngleHist[relBin]", "relativeAngleHist[relBin.toInt()]")
+          s = s.replace("angularEdgeProfile[sector]", "angularEdgeProfile[sector.toInt()]")
+          s = re.sub(r"\.clamp\((\d+),\s*(\d+)\)(?!\.toInt\(\))", r".clamp(\1, \2).toInt()", s)
+          open(p, "w", encoding="utf-8").write(s)
+          PY
 
           cat << 'EOF' > /tmp/flutter_build/pubspec.yaml
           name: spare_parts_ai_matcher
           description: AI Deep Learning Spare Parts Matcher
           publish_to: 'none'
-          version: 1.2.0+3
+          version: 1.2.0+4
 
           environment:
             sdk: '>=3.2.0 <4.0.0'
@@ -66,16 +80,17 @@ jobs:
 
           python3 - << 'PY'
           p = "/tmp/flutter_build/android/app/src/main/AndroidManifest.xml"
-          s = open(p).read()
-          perms = '''    <uses-permission android:name="android.permission.CAMERA" />
-              <uses-permission android:name="android.permission.INTERNET" />
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-          '''
+          s = open(p, encoding="utf-8").read()
+          perms = (
+              '    <uses-permission android:name="android.permission.CAMERA" />\n'
+              '    <uses-permission android:name="android.permission.INTERNET" />\n'
+              '    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n'
+              '    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n'
+          )
           if "android.permission.CAMERA" not in s:
               s = s.replace("<application", perms + "    <application", 1)
           s = s.replace('android:label="spare_parts_ai_matcher"', 'android:label="مطابق قطع الغيار الذكي"')
-          open(p, "w").write(s)
+          open(p, "w", encoding="utf-8").write(s)
           PY
 
       - name: Install dependencies & build APK
