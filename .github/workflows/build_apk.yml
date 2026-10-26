@@ -1,0 +1,91 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Prepare clean Flutter Android project
+        run: |
+          mkdir -p /tmp/app_src
+          FOUND_MAIN=$(find . -name "main.dart" | head -n 1)
+          if [ -n "$FOUND_MAIN" ]; then
+            cp "$FOUND_MAIN" /tmp/app_src/main.dart
+          fi
+          flutter create --platforms=android --org com.spareparts --project-name spare_parts_ai_matcher /tmp/flutter_build
+          if [ -f "/tmp/app_src/main.dart" ]; then
+            cp /tmp/app_src/main.dart /tmp/flutter_build/lib/main.dart
+            sed -i 's/Icons.settings_Suggest/Icons.settings/g' /tmp/flutter_build/lib/main.dart
+            sed -i "s/import 'package:file_picker\/file_picker.dart';//g" /tmp/flutter_build/lib/main.dart
+          fi
+
+          cat << 'EOF' > /tmp/flutter_build/pubspec.yaml
+          name: spare_parts_ai_matcher
+          description: AI Deep Learning Spare Parts Matcher
+          publish_to: 'none'
+          version: 1.2.0+3
+
+          environment:
+            sdk: '>=3.2.0 <4.0.0'
+
+          dependencies:
+            flutter:
+              sdk: flutter
+            image_picker: ^1.1.2
+            file_picker: ^8.1.2
+            image: ^4.2.0
+            http: ^1.2.2
+            path: ^1.9.0
+            shared_preferences: ^2.3.2
+
+          dev_dependencies:
+            flutter_test:
+              sdk: flutter
+
+          flutter:
+            uses-material-design: true
+          EOF
+
+          python3 - << 'PY'
+          p = "/tmp/flutter_build/android/app/src/main/AndroidManifest.xml"
+          s = open(p).read()
+          perms = '''    <uses-permission android:name="android.permission.CAMERA" />
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+          '''
+          if "android.permission.CAMERA" not in s:
+              s = s.replace("<application", perms + "    <application", 1)
+          s = s.replace('android:label="spare_parts_ai_matcher"', 'android:label="مطابق قطع الغيار الذكي"')
+          open(p, "w").write(s)
+          PY
+
+      - name: Install dependencies & build APK
+        working-directory: /tmp/flutter_build
+        run: |
+          flutter pub get
+          flutter build apk --release --no-tree-shake-icons
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spare-parts-ai-matcher-apk
+          path: /tmp/flutter_build/build/app/outputs/flutter-apk/app-release.apk
