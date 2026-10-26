@@ -1,25 +1,50 @@
-name: spare_parts_ai_matcher
-description: تطبيق مطابقة قطع الغيار الذكي بالذكاء الاصطناعي (محلي مقاوم لزوايا التصوير والإضاءة + سحابي)
-publish_to: 'none'
-version: 1.1.0+2
+name: Build Android APK
 
-environment:
-  sdk: '>=3.2.0 <4.0.0'
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
 
-dependencies:
-  flutter:
-    sdk: flutter
-  image_picker: ^1.1.2
-  file_picker: ^8.0.5
-  image: ^4.2.0
-  http: ^1.2.2
-  path: ^1.9.0
-  shared_preferences: ^2.3.2
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^4.0.0
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-flutter:
-  uses-material-design: true
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Generate Android Gradle scaffolding & preserve custom source
+        run: |
+          if [ -d "spare_parts_android_app" ] && [ ! -f "pubspec.yaml" ]; then
+            cp -r spare_parts_android_app/* .
+          fi
+          cp lib/main.dart /tmp/main.dart.bak
+          cp pubspec.yaml /tmp/pubspec.yaml.bak
+          cp android/app/src/main/AndroidManifest.xml /tmp/AndroidManifest.xml.bak
+          flutter create --platforms=android --org com.spareparts --project-name spare_parts_ai_matcher .
+          cp /tmp/main.dart.bak lib/main.dart
+          cp /tmp/pubspec.yaml.bak pubspec.yaml
+          cp /tmp/AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Release APK
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spare-parts-ai-matcher-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
