@@ -1,0 +1,25 @@
+name: spare_parts_ai_matcher
+description: تطبيق مطابقة قطع الغيار الذكي بالذكاء الاصطناعي (محلي مقاوم لزوايا التصوير والإضاءة + سحابي)
+publish_to: 'none'
+version: 1.1.0+2
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  image_picker: ^1.1.2
+  file_picker: ^8.0.5
+  image: ^4.2.0
+  http: ^1.2.2
+  path: ^1.9.0
+  shared_preferences: ^2.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
